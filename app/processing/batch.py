@@ -1,0 +1,89 @@
+import asyncio
+import structlog
+import dspy
+import google.generativeai as genai
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.db.models.post import RawPost, ProcessedPost, PostType
+from app.processing.pipeline import LostFoundPipeline
+from app.core.config import get_settings
+
+logger = structlog.get_logger(__name__)
+
+async def process_unprocessed_posts(session: AsyncSession, limit: int = 20) -> int:
+    """
+    Fetch unprocessed posts from DB, run DSPy pipeline, 
+    generate embeddings, and save to ProcessedPosts.
+    """
+    settings = get_settings()
+
+    # Query for unprocessed posts
+    stmt = (
+        select(RawPost)
+        .where(RawPost.is_processed == False)
+        .where(RawPost.processing_attempts < settings.max_retries)
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    posts_to_process = result.scalars().all()
+    
+    if not posts_to_process:
+        return 0
+        
+    # Configure DSPy
+    # Note: Use synchronous Gemini via DSPy, in production we might use async threads
+    lm = dspy.Google(model=settings.llm_model, api_key=settings.gemini_api_key)
+    dspy.settings.configure(lm=lm)
+    
+    # Configure standalone Google GenAI client for embeddings
+    genai.configure(api_key=settings.gemini_api_key)
+
+    pipeline = LostFoundPipeline()
+    processed_count = 0
+
+    for post in posts_to_process:
+        try:
+            # 1. Run DSPy inference
+            result_dict = pipeline.forward(post.text)
+            
+            # 2. Get embeddings if not irrelevant
+            embedding = None
+            if result_dict["post_type"] != "irrelevant":
+                # We embed the original post text to allow semantic searches
+                embed_res = genai.embed_content(
+                    model=f"models/{settings.llm_embed_model}",
+                    content=post.text,
+                    task_type="retrieval_document"
+                )
+                embedding = embed_res["embedding"]
+            
+            # 3. Create ProcessedPost
+            processed_post = ProcessedPost(
+                raw_post_id=post.id,
+                post_type=PostType(result_dict["post_type"]),
+                confidence_score=result_dict["confidence"],
+                item_type=result_dict["item_type"],
+                person_name=result_dict["person_name"],
+                location_raw=result_dict["location"],
+                contact_info={"raw": result_dict["contact_info"]} if result_dict["contact_info"] else None,
+                embedding=embedding,
+                model_version=settings.llm_model,
+            )
+            
+            session.add(processed_post)
+            
+            # Mark raw post as processed
+            post.is_processed = True
+            
+            processed_count += 1
+            
+        except Exception as e:
+            logger.error("processing_failed", post_id=str(post.id), error=str(e))
+            post.processing_attempts += 1
+            post.processing_error = str(e)
+            
+    await session.commit()
+    logger.info("batch_processing_complete", count=len(posts_to_process), successful=processed_count)
+    return processed_count
