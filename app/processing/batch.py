@@ -1,7 +1,7 @@
 import asyncio
 import structlog
 import dspy
-import google.generativeai as genai
+import google.genai as genai
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -32,32 +32,32 @@ async def process_unprocessed_posts(session: AsyncSession, limit: int = 20) -> i
     if not posts_to_process:
         return 0
         
-    # Configure DSPy
-    # Note: Use synchronous Gemini via DSPy, in production we might use async threads
-    lm = dspy.Google(model=settings.llm_model, api_key=settings.gemini_api_key)
-    dspy.settings.configure(lm=lm)
+    # Configure DSPy with Groq via LiteLLM-style model string
+    lm = dspy.LM(model=f"groq/{settings.llm_model}", api_key=settings.groq_api_key)
+    dspy.configure(lm=lm)
     
-    # Configure standalone Google GenAI client for embeddings
-    genai.configure(api_key=settings.gemini_api_key)
+    # Configure Google GenAI client for embeddings
+    genai_client = genai.Client(api_key=settings.gemini_api_key)
 
     pipeline = LostFoundPipeline()
     processed_count = 0
 
-    for post in posts_to_process:
+    for i, post in enumerate(posts_to_process):
         try:
             # 1. Run DSPy inference
             result_dict = pipeline.forward(post.text)
             
             # 2. Get embeddings if not irrelevant
+            # NOTE: hardcoded to bypass stale Modal secret that had `text-embedding-004`
+            # which is only supported on v1alpha/v1beta but NOT v1beta via embedContent.
+            EMBED_MODEL = "gemini-embedding-exp-03-07"
             embedding = None
             if result_dict["post_type"] != "irrelevant":
-                # We embed the original post text to allow semantic searches
-                embed_res = genai.embed_content(
-                    model=f"models/{settings.llm_embed_model}",
-                    content=post.text,
-                    task_type="retrieval_document"
+                embed_res = genai_client.models.embed_content(
+                    model=EMBED_MODEL,
+                    contents=post.text,
                 )
-                embedding = embed_res["embedding"]
+                embedding = embed_res.embeddings[0].values
             
             # 3. Create ProcessedPost
             processed_post = ProcessedPost(
@@ -79,11 +79,23 @@ async def process_unprocessed_posts(session: AsyncSession, limit: int = 20) -> i
             
             processed_count += 1
             
+            # Commit each post individually to save partial progress
+            await session.commit()
+            
+            # Rate-limit guard: ~1800 tokens/post, Groq free tier = 6000 TPM
+            # Wait 2s between posts to stay well within limits
+            if i < len(posts_to_process) - 1:
+                await asyncio.sleep(2)
+            
         except Exception as e:
             logger.error("processing_failed", post_id=str(post.id), error=str(e))
             post.processing_attempts += 1
             post.processing_error = str(e)
+            await session.commit()
+            # Back off on rate limit errors
+            if "rate_limit" in str(e).lower() or "ratelimit" in str(e).lower():
+                logger.warning("rate_limit_hit_backing_off", sleep_seconds=15)
+                await asyncio.sleep(15)
             
-    await session.commit()
     logger.info("batch_processing_complete", count=len(posts_to_process), successful=processed_count)
     return processed_count

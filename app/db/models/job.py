@@ -72,7 +72,7 @@ class ScrapeJob(Base):
         Enum(JobStatus, name="job_status_enum"),
         nullable=False,
         default=JobStatus.QUEUED,
-        server_default="queued",
+        server_default="QUEUED",
         index=True,
     )
 

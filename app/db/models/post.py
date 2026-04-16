@@ -90,7 +90,7 @@ class RawPost(Base):
     # ── Author ───────────────────────────────────────────────────────────────
     author_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     author_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True,
+        String(128), nullable=True,
         comment="Facebook user ID — more stable identifier than name"
     )
     author_profile_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

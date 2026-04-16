@@ -3,7 +3,8 @@ from typing import AsyncGenerator
 import structlog
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import insert, JSONB
+from sqlalchemy import type_coerce
 
 from app.db.models.post import RawPost
 
@@ -66,7 +67,7 @@ async def ingest_raw_posts(
         # It's better to omit 'posted_at' if not properly parsed, to avoid DB type errors
         
         # Prepare the UPSERT statement
-        stmt = insert(RawPost).values(
+        row_data = dict(
             post_id=str(fb_post_id),
             group_id=group_id_uuid,
             scrape_job_id=scrape_job_uuid,
@@ -76,18 +77,19 @@ async def ingest_raw_posts(
             author_id=author_id,
             author_profile_url=author_profile_url,
             post_url=post_url,
-            images=images,
+            images=type_coerce(images, JSONB),
             engagement=engagement,
             raw_json=raw_item,
-        ).on_conflict_do_update(
+        )
+        
+        stmt = insert(RawPost).values(row_data).on_conflict_do_update(
             index_elements=['post_id'],
             set_=dict(
                 text=text_content,
                 post_text_checksum=post_text_checksum,
                 engagement=engagement,
-                images=images,
+                images=type_coerce(images, JSONB),
                 raw_json=raw_item,
-                # Reset processing if text has changed (meaning it was edited)
                 is_processed=False
             )
         )

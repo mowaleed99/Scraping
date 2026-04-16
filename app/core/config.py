@@ -32,10 +32,11 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800  # recycle connections every 30 min
 
-    # ── LLM / Gemini ─────────────────────────────────────────────────────────
+    # ── API Keys & Models ────────────────────────────────────────────────────
     gemini_api_key: str = Field(..., alias="GEMINI_API_KEY")
-    llm_model: str = "gemini-1.5-flash"
-    llm_embed_model: str = "text-embedding-004"
+    groq_api_key: str = Field(..., alias="GROQ_API_KEY")
+    llm_model: str = "llama-3.1-8b-instant"
+    llm_embed_model: str = "gemini-embedding-exp-03-07"
     llm_max_tokens: int = 1024
     llm_temperature: float = 0.0
 
