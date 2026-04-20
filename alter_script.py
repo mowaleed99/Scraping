@@ -12,8 +12,9 @@ async def main():
                 processing_error = NULL
             WHERE processing_error LIKE '%text-embedding-004%'
                OR processing_error LIKE '%models/text-embedding-004%'
+               OR processing_error LIKE '%gemini-embedding-exp-03-07%'
         """))
-        print(f"Reset {result.rowcount} stuck posts (text-embedding-004 error) back to processing_attempts=0")
+        print(f"Reset {result.rowcount} stuck posts (embedding error) back to processing_attempts=0")
 
 if __name__ == "__main__":
     asyncio.run(main())

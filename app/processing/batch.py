@@ -48,16 +48,16 @@ async def process_unprocessed_posts(session: AsyncSession, limit: int = 20) -> i
             result_dict = pipeline.forward(post.text)
             
             # 2. Get embeddings if not irrelevant
-            # NOTE: hardcoded to bypass stale Modal secret that had `text-embedding-004`
-            # which is only supported on v1alpha/v1beta but NOT v1beta via embedContent.
-            EMBED_MODEL = "gemini-embedding-exp-03-07"
+            # NOTE: using gemini-embedding-2-preview and truncating to 768 to match db
+            EMBED_MODEL = "gemini-embedding-2-preview"
             embedding = None
             if result_dict["post_type"] != "irrelevant":
                 embed_res = genai_client.models.embed_content(
                     model=EMBED_MODEL,
                     contents=post.text,
+                    config=genai.types.EmbedContentConfig(output_dimensionality=768)
                 )
-                embedding = embed_res.embeddings[0].values
+                embedding = embed_res.embeddings[0].values[:768] # Slice just in case API ignores config
             
             # 3. Create ProcessedPost
             processed_post = ProcessedPost(
