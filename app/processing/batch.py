@@ -44,12 +44,12 @@ async def process_unprocessed_posts(session: AsyncSession, limit: int = 20) -> i
 
     for i, post in enumerate(posts_to_process):
         try:
-            # 1. Run DSPy inference
-            result_dict = pipeline.forward(post.text)
+            # 1. Run DSPy inference (wrapped in thread to avoid blocking the async event loop)
+            result_dict = await asyncio.to_thread(pipeline.forward, post.text)
             
             # 2. Get embeddings if not irrelevant
-            # NOTE: using gemini-embedding-2-preview and truncating to 768 to match db
-            EMBED_MODEL = "gemini-embedding-2-preview"
+            # NOTE: using text-embedding-004, truncating to 768 dims to match DB vector column
+            EMBED_MODEL = "text-embedding-004"
             embedding = None
             if result_dict["post_type"] != "irrelevant":
                 embed_res = genai_client.models.embed_content(

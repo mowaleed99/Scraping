@@ -20,7 +20,7 @@ dependencies = [
 
     # AI / DSPy
     "dspy>=2.4.0",
-    "google-generativeai>=0.7.0",
+    "google-genai>=1.0.0",
 
     # Scraping
     "apify-client>=1.7.0",

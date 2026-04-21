@@ -4,7 +4,7 @@ import structlog
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert, JSONB
-from sqlalchemy import type_coerce
+from sqlalchemy import type_coerce, Boolean
 
 from app.db.models.post import RawPost
 
@@ -62,9 +62,23 @@ async def ingest_raw_posts(
         }
         
         posted_at_str = raw_item.get("date") or raw_item.get("timestamp")
-        # In a strict environment, we'd parse this into a datetime.
-        # But we'll leave it simple for now or rely on SQLAlchemy/DB to cast if we were to include it.
-        # It's better to omit 'posted_at' if not properly parsed, to avoid DB type errors
+        posted_at = None
+        if posted_at_str:
+            from datetime import datetime, timezone
+            for fmt in ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    posted_at = datetime.strptime(str(posted_at_str)[:26], fmt[:len(str(posted_at_str)[:26])])
+                    if posted_at.tzinfo is None:
+                        posted_at = posted_at.replace(tzinfo=timezone.utc)
+                    break
+                except ValueError:
+                    continue
+            if posted_at is None:
+                # Fallback: try parsing as an integer Unix timestamp
+                try:
+                    posted_at = datetime.fromtimestamp(int(posted_at_str), tz=timezone.utc)
+                except (ValueError, OSError):
+                    pass
         
         # Prepare the UPSERT statement
         row_data = dict(
@@ -77,6 +91,7 @@ async def ingest_raw_posts(
             author_id=author_id,
             author_profile_url=author_profile_url,
             post_url=post_url,
+            posted_at=posted_at,
             images=type_coerce(images, JSONB),
             engagement=engagement,
             raw_json=raw_item,
@@ -90,7 +105,11 @@ async def ingest_raw_posts(
                 engagement=engagement,
                 images=type_coerce(images, JSONB),
                 raw_json=raw_item,
-                is_processed=False
+                # Only reset is_processed if the post text changed (checksum mismatch).
+                # This prevents re-queuing posts that were already processed on re-scrape.
+                is_processed=(
+                    RawPost.__table__.c.post_text_checksum != post_text_checksum
+                ).cast(Boolean)
             )
         )
         

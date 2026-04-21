@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(..., alias="GEMINI_API_KEY")
     groq_api_key: str = Field(..., alias="GROQ_API_KEY")
     llm_model: str = "llama-3.1-8b-instant"
-    llm_embed_model: str = "gemini-embedding-2-preview"
+    llm_embed_model: str = "text-embedding-004"
     llm_max_tokens: int = 1024
     llm_temperature: float = 0.0
 

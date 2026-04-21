@@ -19,7 +19,7 @@ class LostFoundPipeline(dspy.Module):
         
         # Guard against LLM output format issues
         post_type = str(classification.post_type).lower()
-        if dict(post_type=post_type).get("post_type", "") not in ["lost", "found", "irrelevant"]:
+        if post_type not in ["lost", "found", "irrelevant"]:
             if "lost" in post_type:
                 post_type = "lost"
             elif "found" in post_type:

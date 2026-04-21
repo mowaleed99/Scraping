@@ -34,7 +34,7 @@ async def run_scraper():
     from app.db.models.group import FacebookGroup
     from app.scraper.apify_client import ApifyFacebookScraper
     from app.scraper.dedup import ingest_raw_posts
-    import uuid
+
 
     logger = structlog.get_logger(__name__)
     logger.info("cron_scraper_starting")
@@ -48,7 +48,7 @@ async def run_scraper():
         scraper = ApifyFacebookScraper()
         
         for group in groups:
-             job_id = uuid.uuid4()
+             job_id = None  # NOTE: No ScrapeJob row is inserted first, so we pass None to avoid FK violation
              logger.info("scraping_group", group_id=group.group_id)
              try:
                  generator = scraper.scrape_group(group.group_id, limit=50) # Use smaller limits for frequenct runs
