@@ -6,7 +6,8 @@ from sqlalchemy import select
 from typing import List
 
 from app.db.session import get_db
-from app.db.models.post import ProcessedPost, PostType
+from app.db.models.post import ProcessedPost, RawPost, PostType
+from app.db.models.group import FacebookGroup
 from app.api.schemas import PostResponse
 from app.api.dependencies import verify_api_key
 
@@ -23,14 +24,20 @@ async def list_posts(
 ):
     if limit > 50:
         raise HTTPException(status_code=400, detail="Limit cannot exceed 50")
-    stmt = select(ProcessedPost)
+
+    # Join ProcessedPost → RawPost → FacebookGroup for full traceability
+    stmt = (
+        select(ProcessedPost, RawPost, FacebookGroup)
+        .join(RawPost, ProcessedPost.raw_post_id == RawPost.id)
+        .join(FacebookGroup, RawPost.group_id == FacebookGroup.id)
+    )
     if type:
         stmt = stmt.where(ProcessedPost.post_type == type)
-        
+
     stmt = stmt.order_by(ProcessedPost.extracted_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
-    posts = result.scalars().all()
-    
+    rows = result.all()
+
     return [
         {
             "id": str(p.id),
@@ -39,6 +46,10 @@ async def list_posts(
             "location": p.location_raw,
             "contact": p.contact_info.get("extracted") if p.contact_info else None,
             "created_at": p.extracted_at.isoformat(),
-            "source": "facebook"
-        } for p in posts
+            "source": "facebook",
+            "group_name": g.group_name,
+            "post_url": r.post_url,
+        }
+        for p, r, g in rows
     ]
+

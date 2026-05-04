@@ -10,6 +10,8 @@ class PostResponse(BaseModel):
     contact: Optional[str] = None
     created_at: datetime
     source: str
+    group_name: Optional[str] = None
+    post_url: Optional[str] = None
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -20,7 +22,9 @@ class PostResponse(BaseModel):
                 "location": "Port Said",
                 "contact": "01012345678",
                 "created_at": "2026-05-04T01:25:16Z",
-                "source": "facebook"
+                "source": "facebook",
+                "group_name": "Lost & Found Cairo",
+                "post_url": "https://www.facebook.com/groups/123456/posts/789012"
             }
         }
     )
