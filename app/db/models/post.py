@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -25,7 +24,6 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.group import FacebookGroup
-    from app.db.models.match import Match
 
 
 def _utcnow() -> datetime:
@@ -201,10 +199,6 @@ class ProcessedPost(Base):
     post_type: Mapped[PostType] = mapped_column(
         Enum(PostType, name="post_type_enum"), nullable=False, index=True
     )
-    confidence_score: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True,
-        comment="DSPy confidence score [0, 1]"
-    )
 
     # ── Extracted entities ───────────────────────────────────────────────────
     item_type: Mapped[Optional[str]] = mapped_column(
@@ -232,17 +226,7 @@ class ProcessedPost(Base):
         comment="{phone, whatsapp, facebook_profile, other}"
     )
 
-    # ── Embedding (pgvector) ─────────────────────────────────────────────────
-    embedding: Mapped[Optional[list[float]]] = mapped_column(
-        Vector(768), nullable=True,
-        comment="Gemini text-embedding-004 vector (768-dim) for similarity search"
-    )
-
     # ── Provenance ───────────────────────────────────────────────────────────
-    model_version: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True,
-        comment="DSPy + Gemini model identifier used for this extraction"
-    )
     extracted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
         default=_utcnow, server_default=func.now()
@@ -251,14 +235,6 @@ class ProcessedPost(Base):
     # ── Relationships ────────────────────────────────────────────────────────
     raw_post: Mapped["RawPost"] = relationship(
         "RawPost", back_populates="processed_post", lazy="raise"
-    )
-    lost_matches: Mapped[list["Match"]] = relationship(
-        "Match", foreign_keys="Match.lost_post_id",
-        back_populates="lost_post", lazy="raise"
-    )
-    found_matches: Mapped[list["Match"]] = relationship(
-        "Match", foreign_keys="Match.found_post_id",
-        back_populates="found_post", lazy="raise"
     )
 
     # ── Indices ──────────────────────────────────────────────────────────────

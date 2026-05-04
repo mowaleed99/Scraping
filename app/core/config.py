@@ -33,21 +33,14 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800  # recycle connections every 30 min
 
     # ── API Keys & Models ────────────────────────────────────────────────────
-    gemini_api_key: str = Field(..., alias="GEMINI_API_KEY")
     groq_api_key: str = Field(..., alias="GROQ_API_KEY")
     llm_model: str = "llama-3.1-8b-instant"
-    llm_embed_model: str = "text-embedding-004"
-    llm_max_tokens: int = 1024
     llm_temperature: float = 0.0
 
     # ── Scraping ─────────────────────────────────────────────────────────────
     apify_api_token: str = Field(..., alias="APIFY_API_TOKEN")
     brightdata_api_key: str = ""
     scrape_overlap_hours: int = 1
-
-    # ── Processing ───────────────────────────────────────────────────────────
-    batch_size: int = 20
-    max_retries: int = 3
 
     # ── Derived helpers ──────────────────────────────────────────────────────
     @property

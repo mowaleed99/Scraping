@@ -8,7 +8,6 @@ Import all models here so that:
 
 from app.db.models.group import FacebookGroup
 from app.db.models.job import ScrapeJob
-from app.db.models.match import Match
 from app.db.models.post import ProcessedPost, PostType, RawPost
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "RawPost",
     "ProcessedPost",
     "PostType",
-    "Match",
 ]

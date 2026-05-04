@@ -44,7 +44,10 @@ class ApifyFacebookScraper(BaseScraper):
         try:
             # Run the actor and wait for it to finish
             logger.debug("apify_actor_calling", actor_id=self.actor_id)
-            run = await self.client.actor(self.actor_id).call(run_input=run_input)
+            run = await asyncio.wait_for(
+                self.client.actor(self.actor_id).call(run_input=run_input),
+                timeout=30.0
+            )
             
             logger.info("apify_actor_finished", run_id=run.get("id"), dataset_id=run.get("defaultDatasetId"))
             
