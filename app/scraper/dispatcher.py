@@ -49,11 +49,24 @@ async def dispatch_pending_reports(session: AsyncSession):
                 title = f"[{processed.post_type.value.capitalize()}] {item} in {location}"
                 desc = f"{raw.text}\n\nContact: {contact}\nSource: {raw.post_url}"
                 
+                # Ensure description meets .NET validation limits
+                if len(desc) < 10:
+                    desc = desc.ljust(10, ' ')
+                if len(desc) > 2000:
+                    desc = desc[:1997] + "..."
+                
+                is_person = any(w in str(item).lower() for w in ["person", "child", "boy", "girl", "man", "woman", "kid", "baby", "طفل", "بنت", "ولد", "رجل", "امراة", "شخص", "شاب", "فتاة", "عجوز"])
+                type_prefix = processed.post_type.value.capitalize()
+                final_type = f"{type_prefix}Person" if is_person else f"{type_prefix}Item"
+                
                 report_data = {
                     "Title": title,
                     "Description": desc,
-                    "Type": processed.post_type.value.capitalize(),
+                    "Type": final_type,
                     "SourceUrl": raw.post_url,
+                    # Fallback category IDs to prevent unexpected errors (user can update these)
+                    "CategoryId": "1",
+                    "SubCategoryId": "1",
                 }
                 
                 await client.push_report(report_data)
