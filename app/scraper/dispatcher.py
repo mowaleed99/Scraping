@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.db.models.post import ProcessedPost, PostType
 from app.scraper.dotnet_client import DotNetClient
+from app.scraper.dotnet_metadata_client import DotNetMetadataClient
 
 logger = structlog.get_logger(__name__)
 
@@ -28,8 +29,10 @@ async def dispatch_pending_reports(session: AsyncSession):
         return
         
     client = None
+    metadata_client = None
     try:
         client = DotNetClient()
+        metadata_client = DotNetMetadataClient()
     except Exception as e:
         logger.error("failed_to_initialize_dotnet_client", error=str(e))
         return
@@ -59,14 +62,15 @@ async def dispatch_pending_reports(session: AsyncSession):
                 type_prefix = processed.post_type.value.capitalize()
                 final_type = f"{type_prefix}Person" if is_person else f"{type_prefix}Item"
                 
+                cat_id, subcat_id = await metadata_client.get_category_mapping(item, is_person)
+                
                 report_data = {
                     "Title": title,
                     "Description": desc,
                     "Type": final_type,
                     "SourceUrl": raw.post_url,
-                    # Fallback category IDs to prevent unexpected errors (user can update these)
-                    "CategoryId": "1",
-                    "SubCategoryId": "1",
+                    "CategoryId": str(cat_id),
+                    "SubCategoryId": str(subcat_id),
                 }
                 
                 await client.push_report(report_data)
