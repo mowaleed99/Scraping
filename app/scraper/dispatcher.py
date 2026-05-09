@@ -1,5 +1,6 @@
 import structlog
 import httpx
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -100,9 +101,21 @@ async def dispatch_pending_reports(session: AsyncSession):
             await session.commit()
             dispatched_count += 1
             
+            # Polite delay to avoid hitting .NET rate limits
+            await asyncio.sleep(1)
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                # Rate limited — wait 5 seconds and leave for next run
+                logger.warning("dotnet_rate_limited_pausing", processed_id=str(processed.id))
+                await asyncio.sleep(5)
+                await session.rollback()
+            else:
+                logger.error("dispatch_failed_for_post", error=str(e), processed_id=str(processed.id))
+                await session.rollback()
+            continue
         except Exception as e:
             logger.error("dispatch_failed_for_post", error=str(e), processed_id=str(processed.id))
-            # We rollback to preserve the transaction state and leave it as sent_to_dotnet=False
             await session.rollback()
             continue
             
