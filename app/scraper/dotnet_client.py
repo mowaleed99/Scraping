@@ -34,10 +34,11 @@ class DotNetClient:
             
         logger.info("dotnet_auth_successful")
 
-    async def push_report(self, report_data: dict):
+    async def push_report(self, report_data: dict, image_files: list = None):
         """
         Push a scraped report to the .NET backend.
-        report_data is sent as multipart/form-data as required by /api/Reports
+        report_data is sent as multipart/form-data as required by /api/Reports.
+        image_files should be a list of tuples: (filename, file_bytes, content_type)
         """
         async with httpx.AsyncClient() as client:
             if not self.token:
@@ -45,13 +46,17 @@ class DotNetClient:
             
             headers = {"Authorization": f"Bearer {self.token}"}
             
-            # Convert report_data to dict of strings for multipart/form-data
-            multipart_data = {}
+            # Use a list of tuples to support multiple files with the same key ("Images")
+            multipart_data = []
             for k, v in report_data.items():
                 if v is not None:
-                    multipart_data[k] = (None, str(v))
+                    multipart_data.append((k, (None, str(v))))
+                    
+            if image_files:
+                for img in image_files:
+                    multipart_data.append(("Images", img))
             
-            logger.info("pushing_report_to_dotnet", type=report_data.get("Type"), url=report_data.get("SourceUrl"))
+            logger.info("pushing_report_to_dotnet", type=report_data.get("Type"), url=report_data.get("SourceUrl"), images_count=len(image_files) if image_files else 0)
             
             response = await client.post(
                 f"{self.base_url}/api/Reports",

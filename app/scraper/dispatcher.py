@@ -1,4 +1,5 @@
 import structlog
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -73,7 +74,26 @@ async def dispatch_pending_reports(session: AsyncSession):
                     "SubCategoryId": str(subcat_id),
                 }
                 
-                await client.push_report(report_data)
+                # Download images
+                image_files = []
+                if raw.images:
+                    async with httpx.AsyncClient(timeout=15.0) as img_client:
+                        for idx, img_info in enumerate(raw.images):
+                            img_url = img_info.get("url")
+                            if img_url:
+                                try:
+                                    img_resp = await img_client.get(img_url)
+                                    if img_resp.status_code == 200:
+                                        content_type = img_resp.headers.get("content-type", "image/jpeg")
+                                        ext = "jpg"
+                                        if "png" in content_type: ext = "png"
+                                        elif "webp" in content_type: ext = "webp"
+                                        filename = f"image_{idx}.{ext}"
+                                        image_files.append((filename, img_resp.content, content_type))
+                                except Exception as e:
+                                    logger.warning("failed_to_download_image", url=img_url, error=str(e))
+                
+                await client.push_report(report_data, image_files=image_files)
             
             # Mark as sent (even for irrelevant ones so we don't query them again)
             processed.sent_to_dotnet = True
