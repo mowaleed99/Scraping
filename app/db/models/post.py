@@ -231,6 +231,10 @@ class ProcessedPost(Base):
         DateTime(timezone=True), nullable=False,
         default=_utcnow, server_default=func.now()
     )
+    sent_to_dotnet: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+        comment="True if this post was successfully sent to the .NET backend"
+    )
 
     # ── Relationships ────────────────────────────────────────────────────────
     raw_post: Mapped["RawPost"] = relationship(

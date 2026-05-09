@@ -45,6 +45,7 @@ async def list_posts(
             "item": p.item_type,
             "location": p.location_raw,
             "contact": p.contact_info.get("extracted") if p.contact_info else None,
+            "caption": r.text,
             "created_at": p.extracted_at.isoformat(),
             "source": "facebook",
             "group_name": g.group_name,

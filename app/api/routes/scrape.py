@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.db.models.group import FacebookGroup
 from app.scraper.apify_client import ApifyFacebookScraper
 from app.scraper.dedup import ingest_raw_posts
+from app.scraper.dispatcher import dispatch_pending_reports
 from app.api.schemas import ScrapeResponse
 from app.api.dependencies import verify_api_key
 
@@ -72,23 +73,20 @@ async def trigger_scrape(
     print(f"📡 Fetching posts from Apify for group: {group.group_id}")
     
     try:
-        # We will use the custom group_url if provided, but the apify actor natively 
-        # supports startUrls, so we'll just construct the generator using group.group_id
-        # Wait, the scraper uses group_id to build the URL.
-        # Let's temporarily override the scraper's URL building if we need to, but
-        # the scraper uses: f"https://www.facebook.com/groups/{group_id}"
-        # So passing our extracted group_id is correct.
-        generator = scraper.scrape_group(group.group_id, limit=limit)
-        
         # 3. Ingest and Process
-        # dedup.py already handles inserting to raw_posts -> analyze -> processed_posts
+        generator = scraper.scrape_group(group.group_id, limit=limit)
         result_counts = await ingest_raw_posts(db, group.id, None, generator)
         
         group.last_scraped_at = datetime.now(timezone.utc)
         group.post_count += result_counts["processed"]
         await db.commit()
         
-        print("✅ Scraping finished")
+        print("✅ Scraping and AI Processing finished")
+        
+        # 4. Final Dispatch Phase
+        print("📤 Dispatching to .NET backend...")
+        await dispatch_pending_reports(db)
+        print("✅ Dispatch completed")
         
         scraped_count = result_counts["scraped"]
         if scraped_count == 0:

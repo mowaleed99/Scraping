@@ -12,6 +12,7 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "pydantic-settings",
     "structlog",
     "litellm",
+    "httpx",
 ).add_local_python_source("app")
 
 app = modal.App("lost-found-backend", image=image)

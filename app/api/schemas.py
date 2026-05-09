@@ -8,6 +8,7 @@ class PostResponse(BaseModel):
     item: Optional[str] = None
     location: Optional[str] = None
     contact: Optional[str] = None
+    caption: Optional[str] = None
     created_at: datetime
     source: str
     group_name: Optional[str] = None
@@ -21,6 +22,7 @@ class PostResponse(BaseModel):
                 "item": "wallet",
                 "location": "Port Said",
                 "contact": "01012345678",
+                "caption": "فقدت محفظتي في منطقة بورسعيد...",
                 "created_at": "2026-05-04T01:25:16Z",
                 "source": "facebook",
                 "group_name": "Lost & Found Cairo",

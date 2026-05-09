@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     brightdata_api_key: str = ""
     scrape_overlap_hours: int = 1
 
+    # ── .NET Integration ─────────────────────────────────────────────────────
+    dotnet_backend_url: str = Field(default="https://wasitkheir.runasp.net", alias="DOTNET_BACKEND_URL")
+    dotnet_login_email: str = Field(default="mhmdwaleed309@gmail.com", alias="DOTNET_LOGIN_EMAIL")
+    dotnet_login_password: str = Field(default="scraper@2026", alias="DOTNET_LOGIN_PASSWORD")
+
     # ── Derived helpers ──────────────────────────────────────────────────────
     @property
     def is_production(self) -> bool:

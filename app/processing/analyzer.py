@@ -3,11 +3,11 @@ import structlog
 from groq import Groq
 from app.core.config import get_settings
 
-logger = structlog.get_logger(__name__)
+logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)
 
 settings = get_settings()
 # Initialize groq client only if key is present
-client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+client = Groq(api_key=settings.groq_api_key, timeout=25.0) if settings.groq_api_key else None
 
 def safe_parse(text: str) -> dict:
     try:
@@ -50,6 +50,7 @@ Output format:
 }}
 """
     try:
+        assert client is not None
         completion = client.chat.completions.create(
             model=settings.llm_model,
             messages=[
@@ -57,7 +58,6 @@ Output format:
             ],
             temperature=settings.llm_temperature,
             response_format={"type": "json_object"},
-            timeout=25.0
         )
         result = completion.choices[0].message.content
         return safe_parse(result)
