@@ -70,28 +70,11 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
                 if len(desc) > 2000:
                     desc = desc[:1997] + "..."
                 
-                # Person detection — covers full Arabic word forms including with 'ال' article
-                PERSON_KEYWORDS = [
-                    # English
-                    "person", "child", "boy", "girl", "man", "woman", "kid", "baby", "elderly",
-                    # Arabic — without article
-                    "طفل", "طفلة", "بنت", "ولد", "رجل", "امراة", "امرأة", "شخص", "شاب", "فتاة",
-                    "عجوز", "سيدة", "صبي", "فتى", "مراهق", "مراهقة", "اخ", "اخت", "مريض",
-                    "ابني", "بنتي", "اخويا", "اختي", "ابويا", "امي", "متغيب", "متغيبة", "غائب",
-                    # Arabic — with 'ال' article (colloquial like 'البنت دي')
-                    "البنت", "الولد", "الطفل", "الطفلة", "الرجل", "الشاب", "الفتاة", "الحاج", "الحاجة",
-                    "الشخص", "الراجل", "الست", "المرأة", "العجوز", "الصبي", "المتغيب", "المريض",
-                    # Colloquial Egyptian Arabic
-                    "راجل", "ست", "عيل", "بت", "واد", "ناس", "حد", "حاج", "حاجة", "طالب", "طالبة",
-                ]
+                item = processed.item_type or "Item"
                 item_lower = str(item).lower()
-                # Also check raw text for person keywords (in case item is vague)
-                text_lower = str(raw.text).lower()
-                is_person = (
-                    any(w in item_lower for w in PERSON_KEYWORDS) or
-                    any(w in text_lower for w in PERSON_KEYWORDS) or
-                    any(w in text_lower for w in ["مفقود شخص", "مفقودة", "فقد طفل", "فقدت بنت", "شخص مفقود", "متغيب من", "خرج ولم يعد", "تغيب عن المنزل"])
-                )
+                
+                # The LLM's explicit determination is saved in person_name during ingestion
+                is_person = bool(processed.person_name)
                 type_prefix = "Lost" if processed.post_type == PostType.LOST else "Found"
                 final_type = f"{type_prefix}Person" if is_person else f"{type_prefix}Item"
                 logger.info("dispatch_classification", item=item, is_person=is_person, final_type=final_type)

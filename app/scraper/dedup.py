@@ -167,10 +167,14 @@ async def ingest_raw_posts(
             if analysis_result.get("contact"):
                 contact_info = {"extracted": analysis_result.get("contact")}
 
+            item_name = analysis_result.get("item_name")
+            is_person = analysis_result.get("is_person", False)
+
             processed = ProcessedPost(
                 raw_post_id=raw_post_id,
                 post_type=ptype,
-                item_type=analysis_result.get("item"),
+                item_type=item_name,
+                person_name=item_name if is_person else None,  # We use this column to remember it's a person
                 location_raw=analysis_result.get("location"),
                 contact_info=contact_info
             )

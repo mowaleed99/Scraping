@@ -16,7 +16,8 @@ def safe_parse(text: str) -> dict:
         logger.warning("json_parse_failed", raw_text=text)
         return {
             "type": "irrelevant",
-            "item": None,
+            "item_name": None,
+            "is_person": False,
             "location": None,
             "contact": None
         }
@@ -27,13 +28,14 @@ def analyze_post(text: str) -> dict:
     
     Returns a dictionary with:
     - type: "lost" | "found" | "irrelevant"
-    - item: string or null
+    - item_name: string or null
+    - is_person: true | false
     - location: string or null
     - contact: string or null
     """
     if not client:
         logger.error("groq_client_not_initialized")
-        return {"type": "irrelevant", "item": None, "location": None, "contact": None}
+        return {"type": "irrelevant", "item_name": None, "is_person": False, "location": None, "contact": None}
         
     prompt = f"""Return ONLY valid JSON. No explanation. No extra text.
 Analyze this Facebook post and extract structured information.
@@ -46,7 +48,8 @@ Post:
 Output format:
 {{
   "type": "lost" | "found" | "irrelevant",
-  "item": "extracted item or person name in original language, or null",
+  "item_name": "extracted item or person name in original language, or null",
+  "is_person": true | false,
   "location": "extracted location in original language, or null",
   "contact": "phone number or contact info, or null"
 }}
@@ -65,4 +68,4 @@ Output format:
         return safe_parse(result)
     except Exception as e:
         logger.error("groq_analysis_failed", error=str(e))
-        return {"type": "irrelevant", "item": None, "location": None, "contact": None}
+        return {"type": "irrelevant", "item_name": None, "is_person": False, "location": None, "contact": None}
