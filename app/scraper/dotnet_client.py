@@ -76,5 +76,6 @@ class DotNetClient:
                 )
                 
             response.raise_for_status()
-            logger.info("report_pushed_successfully", status_code=response.status_code)
-            return response.json()
+            response_json = response.json()
+            logger.info("report_pushed_successfully", status_code=response.status_code, response=response_json)
+            return response_json

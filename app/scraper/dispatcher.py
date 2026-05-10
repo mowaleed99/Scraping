@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from app.db.models.post import ProcessedPost, PostType
 from app.scraper.dotnet_client import DotNetClient
@@ -47,6 +47,9 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
         logger.error("failed_to_initialize_dotnet_client", error=str(e))
         return
 
+        return
+
+    successful_ids = []
     dispatched_count = 0
     for processed in pending_posts:
         try:
@@ -112,8 +115,7 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
                 await client.push_report(report_data, image_files=image_files)
             
             # Mark as sent (even for irrelevant ones so we don't query them again)
-            processed.sent_to_dotnet = True
-            await session.commit()
+            successful_ids.append(processed.id)
             dispatched_count += 1
             
             # Polite delay to avoid hitting .NET rate limits
@@ -124,14 +126,19 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
                 # Rate limited — wait 5 seconds and leave for next run
                 logger.warning("dotnet_rate_limited_pausing", processed_id=str(processed.id))
                 await asyncio.sleep(5)
-                await session.rollback()
             else:
                 logger.error("dispatch_failed_for_post", error=str(e), processed_id=str(processed.id))
-                await session.rollback()
             continue
         except Exception as e:
             logger.error("dispatch_failed_for_post", error=str(e), processed_id=str(processed.id))
-            await session.rollback()
             continue
+            
+    if successful_ids:
+        await session.execute(
+            update(ProcessedPost)
+            .where(ProcessedPost.id.in_(successful_ids))
+            .values(sent_to_dotnet=True)
+        )
+        await session.commit()
             
     logger.info("dotnet_dispatch_phase_completed", dispatched_count=dispatched_count)
