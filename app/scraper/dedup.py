@@ -60,14 +60,49 @@ async def ingest_raw_posts(
             author_id = user_info.get("id") or raw_item.get("userId")
             author_profile_url = user_info.get("url") or raw_item.get("userUrl")
             
-            # Images extraction
+            # ── Image extraction (covers all known Apify field shapes) ────────
+            seen_urls: set = set()
             images = []
-            if "media" in raw_item:
-                for m in raw_item["media"]:
-                    if m.get("type") == "image":
-                        images.append({"url": m.get("url")})
-            elif "images" in raw_item:
-                images = [{"url": img_url} for img_url in raw_item["images"]]
+
+            def add_image(url):
+                """Deduplicate and validate before adding to images list."""
+                if url and isinstance(url, str) and url.strip() and url not in seen_urls:
+                    seen_urls.add(url)
+                    images.append({"url": url.strip()})
+
+            # 1. attachments[] — primary source in current Apify actor output
+            for att in raw_item.get("attachments") or []:
+                # Best quality: photo_image.uri
+                photo_image = att.get("photo_image") or {}
+                add_image(photo_image.get("uri"))
+                # Fallback: thumbnail
+                add_image(att.get("thumbnail"))
+                # Other possible fields
+                add_image(att.get("url") if att.get("__typename") == "Photo" else None)
+                add_image(att.get("imageUrl"))
+
+            # 2. media[] — older actor versions
+            for m in raw_item.get("media") or []:
+                if m.get("type") in ("image", "photo", None):
+                    add_image(m.get("url") or m.get("uri"))
+                    add_image(m.get("thumbnail"))
+
+            # 3. images[] — plain string list format
+            for img in raw_item.get("images") or []:
+                if isinstance(img, str):
+                    add_image(img)
+                elif isinstance(img, dict):
+                    add_image(img.get("url") or img.get("uri"))
+
+            # 4. Any other top-level image URL fields
+            add_image(raw_item.get("imageUrl"))
+            add_image(raw_item.get("photoUrl"))
+            add_image(raw_item.get("thumbnail"))
+
+            if images:
+                logger.info("images_extracted", post_id=str(fb_post_id), count=len(images))
+            else:
+                logger.debug("no_images_found", post_id=str(fb_post_id))
             
             posted_at_str = raw_item.get("date") or raw_item.get("timestamp")
             posted_at = None
