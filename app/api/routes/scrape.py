@@ -74,7 +74,7 @@ async def trigger_scrape(
     
     try:
         # 3. Ingest and Process
-        generator = scraper.scrape_group(group.group_id, limit=limit)
+        generator = scraper.scrape_group(group.group_url, limit=limit)
         result_counts = await ingest_raw_posts(db, group.id, None, generator)
         
         group.last_scraped_at = datetime.now(timezone.utc)

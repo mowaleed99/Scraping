@@ -17,10 +17,8 @@ class ApifyFacebookScraper(BaseScraper):
     def __init__(self):
         self.settings = get_settings()
         self.client = ApifyClientAsync(self.settings.apify_api_token)
-        # Assuming we use the apify/facebook-groups-scraper or similar.
-        self.actor_id = "apify/facebook-groups-scraper"
 
-    async def scrape_group(self, group_id: str, limit: int = 100) -> AsyncGenerator[dict, None]:
+    async def scrape_group(self, group_url_or_id: str, limit: int = 100) -> AsyncGenerator[dict, None]:
         """
         Scrape posts from a specific Facebook group using Apify.
         
@@ -31,21 +29,30 @@ class ApifyFacebookScraper(BaseScraper):
         Yields:
             dict: Raw dictionary data from the Apify actor.
         """
-        logger.info("apify_scrape_started", group_id=group_id, limit=limit)
+        logger.info("apify_scrape_started", target=group_url_or_id, limit=limit)
         
-        # Build the start URL for the Apify Actor
-        group_url = f"https://www.facebook.com/groups/{group_id}"
+        # Build the start URL
+        if group_url_or_id.startswith("http"):
+            target_url = group_url_or_id
+        else:
+            target_url = f"https://www.facebook.com/groups/{group_url_or_id}"
+            
+        # Select appropriate Apify actor based on URL type (Group vs Page)
+        if "/groups/" in target_url:
+            actor_id = "apify/facebook-groups-scraper"
+        else:
+            actor_id = "apify/facebook-posts-scraper"
         
         run_input = {
-            "startUrls": [{"url": group_url}],
+            "startUrls": [{"url": target_url}],
             "resultsLimit": limit,
         }
         
         try:
             # Run the actor and wait for it to finish
-            logger.debug("apify_actor_calling", actor_id=self.actor_id)
+            logger.debug("apify_actor_calling", actor_id=actor_id)
             run = await asyncio.wait_for(
-                self.client.actor(self.actor_id).call(run_input=run_input),
+                self.client.actor(actor_id).call(run_input=run_input),
                 timeout=300.0  # Apify actor needs up to 2-3 minutes to complete
             )
             
