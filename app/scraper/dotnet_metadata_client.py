@@ -116,12 +116,11 @@ class DotNetMetadataClient:
             if sub_name_lower in item_lower or item_lower in sub_name_lower:
                 return sub["categoryId"], sub["id"]
                 
-        # 4. Final Fallback (If it's an unrecognized item, map to "Important papers" under Emergency, or generic Valuables)
-        # We will map to "Personal Accessories" -> "Watches" or just the first valid one
+        # 4. Final Fallback: use "Valuable items" as generic catch-all
         for sub in subcategories:
-            if sub["name"].lower() == "important papers":
+            if sub["name"].lower() == "valuable items":
                 return sub["categoryId"], sub["id"]
-                
+
         # Ultimate fallback: return the first available subcategory
         first = subcategories[0]
         return first["categoryId"], first["id"]
