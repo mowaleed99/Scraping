@@ -96,19 +96,42 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
                 # Download images
                 image_files = []
                 if raw.images:
-                    async with httpx.AsyncClient(timeout=15.0) as img_client:
+                    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as img_client:
                         for idx, img_info in enumerate(raw.images):
                             img_url = img_info.get("url")
                             if img_url:
                                 try:
-                                    img_resp = await img_client.get(img_url)
+                                    headers = {
+                                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                                        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                                    }
+                                    img_resp = await img_client.get(img_url, headers=headers)
                                     if img_resp.status_code == 200:
-                                        content_type = img_resp.headers.get("content-type", "image/jpeg")
+                                        content_type = img_resp.headers.get("content-type", "").lower()
+                                        content_length = len(img_resp.content)
+                                        logger.debug("image_download_details", url=img_url, content_type=content_type, content_length=content_length)
+                                        
+                                        if "text/html" in content_type or not content_type.startswith("image/"):
+                                            logger.warning("invalid_image_content_type", url=img_url, content_type=content_type)
+                                            continue
+                                            
+                                        if content_length < 100:
+                                            logger.warning("invalid_image_size_too_small", url=img_url, content_length=content_length)
+                                            continue
+                                            
+                                        magic = img_resp.content[:4]
+                                        if magic.startswith(b'<'):
+                                            logger.warning("image_failed_magic_byte_check", url=img_url, magic=str(magic))
+                                            continue
+                                            
                                         ext = "jpg"
                                         if "png" in content_type: ext = "png"
                                         elif "webp" in content_type: ext = "webp"
                                         filename = f"image_{idx}.{ext}"
                                         image_files.append((filename, img_resp.content, content_type))
+                                        logger.info("image_download_successful", filename=filename, url=img_url)
+                                    else:
+                                        logger.warning("image_download_failed_status", url=img_url, status_code=img_resp.status_code)
                                 except Exception as e:
                                     logger.warning("failed_to_download_image", url=img_url, error=str(e))
                 

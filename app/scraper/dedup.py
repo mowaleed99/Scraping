@@ -67,9 +67,19 @@ async def ingest_raw_posts(
 
             def add_image(url):
                 """Deduplicate and validate before adding to images list."""
-                if url and isinstance(url, str) and url.strip() and url not in seen_urls:
-                    seen_urls.add(url)
-                    images.append({"url": url.strip()})
+                if not url or not isinstance(url, str):
+                    return
+                u = url.strip()
+                if not u or u in seen_urls:
+                    return
+                    
+                # Reject known Facebook viewer/redirect pages
+                if "facebook.com" in u and any(x in u for x in ["/photo", "/story", "fbid=", "set=", "/video"]):
+                    logger.debug("skipping_non_image_url", url=u)
+                    return
+                    
+                seen_urls.add(u)
+                images.append({"url": u})
 
             # 1. attachments[] — primary source in current Apify actor output
             for att in raw_item.get("attachments") or []:
