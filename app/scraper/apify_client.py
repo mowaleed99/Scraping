@@ -65,5 +65,5 @@ class ApifyFacebookScraper(BaseScraper):
                 yield item
                 
         except Exception as e:
-            logger.error("apify_scrape_failed", group_id=group_id, error=str(e))
+            logger.error("apify_scrape_failed", target=group_url_or_id, error=str(e))
             raise
