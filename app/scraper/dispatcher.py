@@ -1,6 +1,8 @@
 import structlog
 import httpx
 import asyncio
+from typing import Optional, List
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -10,19 +12,25 @@ from app.scraper.dotnet_metadata_client import DotNetMetadataClient
 
 logger = structlog.get_logger(__name__)
 
-async def dispatch_pending_reports(session: AsyncSession):
+async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[List[UUID]] = None):
     """
-    Fetch all processed_posts where sent_to_dotnet = false,
-    send them to the .NET backend one by one, and update the flag.
+    Fetch processed_posts where sent_to_dotnet = false and dispatch them to the .NET backend.
+    If only_ids is provided, ONLY those posts are dispatched (new posts from this scrape run).
+    This prevents re-sending old backlogged posts.
     """
-    logger.info("starting_dotnet_dispatch_phase")
+    if only_ids is not None and len(only_ids) == 0:
+        logger.info("no_new_posts_to_dispatch")
+        return
+        
+    logger.info("starting_dotnet_dispatch_phase", filter_count=len(only_ids) if only_ids else "all")
     
-    # We use selectinload to get the raw_post so we can access text and post_url
     stmt = (
         select(ProcessedPost)
         .options(selectinload(ProcessedPost.raw_post))
         .where(ProcessedPost.sent_to_dotnet == False)
     )
+    if only_ids:
+        stmt = stmt.where(ProcessedPost.id.in_(only_ids))
     result = await session.execute(stmt)
     pending_posts = result.scalars().all()
     

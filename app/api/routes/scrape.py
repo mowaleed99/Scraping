@@ -83,10 +83,12 @@ async def trigger_scrape(
         
         print("✅ Scraping and AI Processing finished")
         
-        # 4. Final Dispatch Phase
-        print("📤 Dispatching to .NET backend...")
-        await dispatch_pending_reports(db)
+        # 4. Final Dispatch Phase — only send posts from THIS scrape run
+        new_ids = result_counts.get("new_processed_ids", [])
+        print(f"📤 Dispatching {len(new_ids)} new posts to .NET backend...")
+        await dispatch_pending_reports(db, only_ids=new_ids)
         print("✅ Dispatch completed")
+
         
         scraped_count = result_counts["scraped"]
         if scraped_count == 0:

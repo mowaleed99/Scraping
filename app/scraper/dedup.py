@@ -28,6 +28,7 @@ async def ingest_raw_posts(
     processed_count = 0
     skipped_count = 0
     scraped_count = 0
+    new_processed_ids: list = []  # Track IDs of newly created ProcessedPost records
     
     async for raw_item in posts_stream:
         scraped_count += 1
@@ -175,7 +176,7 @@ async def ingest_raw_posts(
             )
             session.add(processed)
             await session.flush()
-            
+            new_processed_ids.append(processed.id)
             processed_count += 1
             
         except Exception as e:
@@ -187,5 +188,6 @@ async def ingest_raw_posts(
     return {
         "scraped": scraped_count,
         "processed": processed_count,
-        "skipped": skipped_count
+        "skipped": skipped_count,
+        "new_processed_ids": new_processed_ids,  # IDs of just-created ProcessedPost rows
     }
