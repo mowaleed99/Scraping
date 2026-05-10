@@ -76,19 +76,21 @@ async def dispatch_pending_reports(session: AsyncSession, only_ids: Optional[Lis
                     "person", "child", "boy", "girl", "man", "woman", "kid", "baby", "elderly",
                     # Arabic — without article
                     "طفل", "طفلة", "بنت", "ولد", "رجل", "امراة", "امرأة", "شخص", "شاب", "فتاة",
-                    "عجوز", "سيدة", "صبي", "فتى", "مراهق", "مراهقة", "اخ", "اخت",
+                    "عجوز", "سيدة", "صبي", "فتى", "مراهق", "مراهقة", "اخ", "اخت", "مريض",
+                    "ابني", "بنتي", "اخويا", "اختي", "ابويا", "امي", "متغيب", "متغيبة", "غائب",
                     # Arabic — with 'ال' article (colloquial like 'البنت دي')
-                    "البنت", "الولد", "الطفل", "الطفلة", "الرجل", "الشاب", "الفتاة",
-                    "الشخص", "الراجل", "الست", "المرأة", "العجوز", "الصبي",
+                    "البنت", "الولد", "الطفل", "الطفلة", "الرجل", "الشاب", "الفتاة", "الحاج", "الحاجة",
+                    "الشخص", "الراجل", "الست", "المرأة", "العجوز", "الصبي", "المتغيب", "المريض",
                     # Colloquial Egyptian Arabic
-                    "راجل", "ست", "عيل", "بت", "واد", "ناس", "حد",
+                    "راجل", "ست", "عيل", "بت", "واد", "ناس", "حد", "حاج", "حاجة", "طالب", "طالبة",
                 ]
                 item_lower = str(item).lower()
                 # Also check raw text for person keywords (in case item is vague)
                 text_lower = str(raw.text).lower()
                 is_person = (
                     any(w in item_lower for w in PERSON_KEYWORDS) or
-                    any(w in text_lower for w in ["مفقود شخص", "مفقودة", "فقد طفل", "فقدت بنت", "شخص مفقود"])
+                    any(w in text_lower for w in PERSON_KEYWORDS) or
+                    any(w in text_lower for w in ["مفقود شخص", "مفقودة", "فقد طفل", "فقدت بنت", "شخص مفقود", "متغيب من", "خرج ولم يعد", "تغيب عن المنزل"])
                 )
                 type_prefix = "Lost" if processed.post_type == PostType.LOST else "Found"
                 final_type = f"{type_prefix}Person" if is_person else f"{type_prefix}Item"

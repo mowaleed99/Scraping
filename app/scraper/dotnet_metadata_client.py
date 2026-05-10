@@ -116,11 +116,16 @@ class DotNetMetadataClient:
             if sub_name_lower in item_lower or item_lower in sub_name_lower:
                 return sub["categoryId"], sub["id"]
                 
-        # 4. Final Fallback: use "Valuable items" as generic catch-all
+        # 4. Final Fallback: use "Identity Documents" or "Important papers" as generic catch-all
         for sub in subcategories:
-            if sub["name"].lower() == "valuable items":
+            if sub["name"].lower() in ["identity documents", "important papers"]:
                 return sub["categoryId"], sub["id"]
 
-        # Ultimate fallback: return the first available subcategory
+        # Ultimate fallback: if even those don't exist, try to find something generic
+        for sub in subcategories:
+            if sub["name"].lower() == "handbags":
+                return sub["categoryId"], sub["id"]
+                
+        # Only if all else fails, return the first one
         first = subcategories[0]
         return first["categoryId"], first["id"]
