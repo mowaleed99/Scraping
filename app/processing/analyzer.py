@@ -35,8 +35,10 @@ def analyze_post(text: str) -> dict:
         logger.error("groq_client_not_initialized")
         return {"type": "irrelevant", "item": None, "location": None, "contact": None}
         
-    prompt = f"""
-Return ONLY valid JSON. No explanation. No extra text.
+    prompt = f"""Return ONLY valid JSON. No explanation. No extra text.
+Analyze this Facebook post and extract structured information.
+Keep ALL extracted values (item, location, contact) in the SAME language as the post.
+Do NOT translate to English. If the post is in Arabic, return Arabic values.
 
 Post:
 {text}
@@ -44,9 +46,9 @@ Post:
 Output format:
 {{
   "type": "lost" | "found" | "irrelevant",
-  "item": "string or null",
-  "location": "string or null",
-  "contact": "string or null"
+  "item": "extracted item or person name in original language, or null",
+  "location": "extracted location in original language, or null",
+  "contact": "phone number or contact info, or null"
 }}
 """
     try:

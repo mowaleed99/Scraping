@@ -51,8 +51,8 @@ async def dispatch_pending_reports(session: AsyncSession):
                 if processed.contact_info and "extracted" in processed.contact_info:
                     contact = processed.contact_info["extracted"]
                 
-                title = f"[{processed.post_type.value.capitalize()}] {item} in {location}"
-                desc = f"{raw.text}\n\nContact: {contact}\nSource: {raw.post_url}"
+                title = f"[{processed.post_type.value.capitalize()}] {item} - {location}"
+                desc = f"{raw.text}\n\nللتواصل: {contact}\nالمصدر: {raw.post_url}"
                 
                 # Ensure description meets .NET validation limits
                 if len(desc) < 10:
