@@ -92,11 +92,17 @@ async def ingest_raw_posts(
                 add_image(att.get("url") if att.get("__typename") == "Photo" else None)
                 add_image(att.get("imageUrl"))
 
-            # 2. media[] — older actor versions
+            # 2. media[] — current Apify actor output (photos live here)
             for m in raw_item.get("media") or []:
-                if m.get("type") in ("image", "photo", None):
-                    add_image(m.get("url") or m.get("uri"))
-                    add_image(m.get("thumbnail"))
+                # Best quality: photo_image.uri (same as attachments)
+                photo_image = m.get("photo_image") or {}
+                add_image(photo_image.get("uri"))
+                # Second best: thumbnail (direct CDN URL)
+                add_image(m.get("thumbnail"))
+                # Fallback: url/uri only if it's a direct CDN asset (not a FB wrapper)
+                raw_url = m.get("url") or m.get("uri") or ""
+                if "fbcdn.net" in raw_url or "cdninstagram.com" in raw_url:
+                    add_image(raw_url)
 
             # 3. images[] — plain string list format
             for img in raw_item.get("images") or []:
